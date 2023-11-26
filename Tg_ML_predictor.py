@@ -32,7 +32,7 @@ import base64
 #---------------------------------#
 # Page layout
 ## Page expands to full width
-st.set_page_config(page_title='LiADME- OCT1 substrate predictor', page_icon=":computer:", layout='wide')
+st.set_page_config(page_title='Tg ML predictor', page_icon=":computer:", layout='wide')
 
 ######
 # Function to put a picture as header   
