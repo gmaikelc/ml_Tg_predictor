@@ -92,25 +92,25 @@ uploaded_file_1 = st.sidebar.file_uploader("Upload a TXT file with one SMILES pe
 
 def standardizer(df):
     s = Standardizer()
-    moleculas = df[0].tolist()
-    moleculas_estandarizadas = []
+    molecules = df[0].tolist()
+    standardize_molecules = []
     i = 1
     t = st.empty()
 
-    for molecula in moleculas:
+    for molecule in molecules:
         try:
-            smiles = molecula.strip()
+            smiles = molecule.strip()
             mol = Chem.MolFromSmiles(smiles)
             standarized_mol = s.super_parent(mol) 
-            smiles_estandarizado = Chem.MolToSmiles(standarized_mol)
-            moleculas_estandarizadas.append(smiles_estandarizado)
-            # st.write(f'\rProcessing molecule {i}/{len(moleculas)}', end='', flush=True)
-            t.markdown("Processing molecules: " + str(i) +"/" + str(len(moleculas)))
+            standardize_smiles = Chem.MolToSmiles(standarized_mol)
+            standardize_molecules.append(standardize_smiles)
+            # st.write(f'\rProcessing molecule {i}/{len(molecules)}', end='', flush=True)
+            t.markdown("Processing molecules: " + str(i) +"/" + str(len(molecules)))
 
             i = i + 1
         except:
-            moleculas_estandarizadas.append(molecula)
-    df['standarized_SMILES'] = moleculas_estandarizadas
+            standardize_molecules.append(molecule)
+    df['standarized_SMILES'] = standardize_molecules
     return df
 
 
@@ -269,22 +269,22 @@ def formal_charge_calculation(descriptores):
 #%% Calculating molecular descriptors
 ### ----------------------- ###
 
-def calcular_descriptores(data):
+def calculating_descriptors(data):
     
     data1x = pd.DataFrame()
-    df_quasi_final_estandarizado = standardizer(data)
-    suppl = list(df_quasi_final_estandarizado["standarized_SMILES"])
+    df_prev_final_standardize = standardizer(data)
+    suppl = list(df_prev_final_standardize["standarized_SMILES"])
 
     smiles_ph_ok = []
     t = st.empty()
 
-    for i,molecula in enumerate(suppl):
-        smiles_ionized = charges_ph(molecula, 7.4)
+    for i,molecule in enumerate(suppl):
+        smiles_ionized = charges_ph(molecule, 7.4)
         smile_checked = smile_obabel_corrector(smiles_ionized)
         smile_final = smile_checked.rstrip()
         smiles_ph_ok.append(smile_final)
         
-    df_quasi_final_estandarizado["Final_SMILES"] = smiles_ph_ok
+    df_prev_final_standardize["Final_SMILES"] = smiles_ph_ok
     
     calc = Calculator(descriptors, ignore_3D=True) 
     # t = st.empty()
@@ -501,7 +501,7 @@ if uploaded_file_1 is not None:
     run = st.button("RUN")
     if run == True:
         data = pd.read_csv(uploaded_file_1,sep="\t",header=None)       
-        descriptors_total, smiles_list = calcular_descriptores(data)
+        descriptors_total, smiles_list = calculating_descriptors(data)
         X_final1, smiles_final = all_correct_model(descriptors_total,loaded_desc, smiles_list)
         final_file, styled_df = predictions(loaded_model, loaded_desc, X_final1)
         figure  = final_plot(final_file)  
@@ -522,7 +522,7 @@ else:
     st.info('👈🏼👈🏼👈🏼      Awaiting for TXT file to be uploaded.')
     if st.button('Press to use Example Dataset'):
         data = pd.read_csv("example_file.txt",sep="\t",header=None)
-        descriptors_total, smiles_list = calcular_descriptores(data)
+        descriptors_total, smiles_list = calculating_descriptors(data)
         X_final1, smiles_final = all_correct_model(descriptors_total,loaded_desc, smiles_list)
         final_file, styled_df = predictions(loaded_model, loaded_desc, X_final1)
         figure  = final_plot(final_file)  
