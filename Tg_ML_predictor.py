@@ -52,11 +52,11 @@ st.markdown("The group of Prof. Rasulev is focused on development of artificial 
 # Introduction
 #---------------------------------#
 
-st.title(':computer: _OCT1 Substrate predictor_ ')
+st.title(':computer: _Tg ML predictor_ ')
 
 st.write("""
 
-**It is a free web-application for Organic cation transporter 1 (OCT1) Substrate Prediction**
+**It is a free web-application for Glass Transition Temperature Prediction**
 
 Organic Cation Transporters (OCTs) are members of the Solute Carrier (SLC) group of transporters and belong to the Major Facilitator superfamily.
 According to the Human Genome Organization, they are assigned to the SLC22A family, which includes electrogenic and electroneutral organic cation transporters and Organic Anion Transporters (OATs),
