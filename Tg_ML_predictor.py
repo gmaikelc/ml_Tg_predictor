@@ -80,7 +80,8 @@ st.image(image, caption='Tg ML predictor workflow')
 # Sidebar - Collects user input features into dataframe
 st.sidebar.header('Upload your SMILES')
 st.sidebar.markdown("""
-[Example TXT input file](https://raw.githubusercontent.com/LIDeB/OCT1-predictor/main/example_file.txt)        
+[Example TXT input file](https://raw.githubusercontent.com/gmaikelc/ml_Tg_predictor/main/example_file.txt) 
+
 """)
 
 uploaded_file_1 = st.sidebar.file_uploader("Upload a TXT file with one SMILES per line", type=["txt"])
@@ -89,7 +90,7 @@ uploaded_file_1 = st.sidebar.file_uploader("Upload a TXT file with one SMILES pe
 #%% Standarization by MOLVS ####
 ####---------------------------------------------------------------------------####
 
-def estandarizador(df):
+def standardizer(df):
     s = Standardizer()
     moleculas = df[0].tolist()
     moleculas_estandarizadas = []
@@ -271,7 +272,7 @@ def formal_charge_calculation(descriptores):
 def calcular_descriptores(data):
     
     data1x = pd.DataFrame()
-    df_quasi_final_estandarizado = estandarizador(data)
+    df_quasi_final_estandarizado = standardizer(data)
     suppl = list(df_quasi_final_estandarizado["standarized_SMILES"])
 
     smiles_ph_ok = []
