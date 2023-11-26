@@ -78,8 +78,8 @@ The tool uses the following packages [RDKIT](https://www.rdkit.org/docs/index.ht
 """)
 
 
-image = Image.open('workflow_OCTapp.png')
-st.image(image, caption='OCT1 substrate predictor workflow')
+image = Image.open('workflow_TGapp.png')
+st.image(image, caption='Tg ML predictor workflow')
 
 
 #---------------------------------#
