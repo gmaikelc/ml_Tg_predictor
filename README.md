@@ -7,7 +7,7 @@ including toxicity, solubility, fouling release properties, elasticity, degradat
 The group applies computational chemistry, machine learning and cheminformatics methods for modeling, data analysis and development of predictive structure-property relationship models 
 to find structural factors responsible for activity of investigated materials.
 
-💻Web Site https://rasulev.org
+💻Web Site http://www.rasulev.org
 
 
 
