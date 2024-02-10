@@ -130,14 +130,13 @@ def normalize_data(train_data, test_data):
 
     return df_train_normalized, df_test_normalized
 
-# Example usage
-#x_train_normalized, x_test_normalized = normalize_data(x_train, x_test)
 
 #%% Determining Applicability Domain (AD)
 
 def applicability_domain(x_test_normalized, x_train_normalized):
     
-    descr_training = x_train_normalized.values
+    X_train = x_train_normalized.values
+    X_test = x_test_normalized.values
     # Calculate leverage and standard deviation for the training set
     hat_matrix_train = X_train @ np.linalg.inv(X_train.T @ X_train) @ X_train.T
     leverage_train = np.diagonal(hat_matrix_train)
@@ -150,8 +149,7 @@ def applicability_domain(x_test_normalized, x_train_normalized):
     
     # threshold for the applicability domain
     
-    #h2 = 2*(desc.shape[1]/desc.shape[0])  ## El h es 2 x Num de descriptores dividido el Num compuestos training. Mas estricto
-    h3 = 3*((x_train_normalized.shape[1]+1)/x_train_normalized.shape[0])  ##  Mas flexible
+    h3 = 3*((x_train_normalized.shape[1]+1)/x_train_normalized.shape[0])  
     
     diagonal_compare = list(leverage_test)
     h_results =[]
@@ -206,56 +204,65 @@ def get_color(confidence):
 
 #%% Predictions        
 
-def predictions(loaded_model, loaded_desc, X_final1):
+#%% Predictions        
+
+def predictions(loaded_model, loaded_desc, df_test_normalized):
     scores = []
     h_values = []
+    std_resd = []
+    idx = X_final1['ID']
 
-    i = 0
+    descriptors_model = loaded_desc
+        
+    X = df_test_normalized[descriptors_model]
+    predictions = loaded_model.predict(X)
+    scores.append(predictions)
+        
+    # y_true and y_pred are the actual and predicted values, respectively
     
-    for estimator in loaded_model:
-        descriptors_model = loaded_desc[i]
-        
-        X = X_final1[descriptors_model]
-        predictions = estimator.predict(X)
-        scores.append(predictions)
-        
-        # y_true and y_pred are the actual and predicted values, respectively
-        y_test =mean_value
-        residuals_test = y_test -predictions
+    # Create y_true array with all elements set to 2.56 and the same length as y_pred
+    y_pred_test = predictions
+    y_test = np.full_like(y_pred_test, mean_value)
+    residuals_test = y_test -y_pred_test
 
-        std_dev_test = np.sqrt(mean_squared_error(y_test, y_pred_test))
-        std_residual_test = (y_test - y_pred_test) / std_dev_test
-        std_residual_test = std_residual_test.ravel()
+    std_dev_test = np.sqrt(mean_squared_error(y_test, y_pred_test))
+    std_residual_test = (y_test - y_pred_test) / std_dev_test
+    std_residual_test = std_residual_test.ravel()
           
-        std_resd.append(std_residual_test)
+    std_resd.append(std_residual_test)
         
-        h_results  = applicability_domain(X, descriptors_model)
-        h_values.append(h_results)
-    i = i + 1 
+    h_results  = applicability_domain(X, df_train_normalized)
+    h_values.append(h_results)
+    
 
     dataframe_pred = pd.DataFrame(scores).T
-    dataframe_pred.index = id
+    dataframe_pred.index = idx
+    dataframe_pred.rename(columns={0: "Predictions"},inplace=True)
+    
     dataframe_std = pd.DataFrame(std_resd).T
-    dataframe_std.index = id
+    dataframe_std.index = idx
     
         
     h_final = pd.DataFrame(h_values).T
-    h_final.index = id
-    h_final['Confidence'] = (h_final.sum(axis=1) / len(h_final.columns)) * 1
+    h_final.index = idx
+    h_final.rename(columns={0: "Confidence"},inplace=True)
+    
 
-    std_ensemble = dataframe_std.min(axis=1)
+    std_ensemble = dataframe_std.iloc[:,0]
     # Create a mask using boolean indexing
-    std_ad_calc = (score_ensemble >= 3) | (score_ensemble <= -3) 
+    std_ad_calc = (std_ensemble >= 3) | (std_ensemble <= -3) 
     std_ad_calc = std_ad_calc.replace({True: 'Outside AD', False: 'Inside AD'})
+   
     
-    final_file = pd.concat([std_ad_calc,h_final['Confidence'],dataframe_pred], axis=1)
+    final_file = pd.concat([std_ad_calc,h_final,dataframe_pred], axis=1)
     
-    final_file.rename(columns={0: "Std_residual",2: "Predictions"},inplace=True)
+    final_file.rename(columns={0: "Std_residual"},inplace=True)
     
+    h3 = 3*((df_train_normalized.shape[1]+1)/df_train_normalized.shape[0])  ##  Mas flexible
 
-    final_file.loc[(final_file["Confidence"] <= h3) & ((final_file["Std_residual"] <= 3) | (final_file["Std_residual"] >= -3)), 'Confidence'] = 'HIGH'
-    final_file.loc[(final_file["Confidence"] <= h3) & ((final_file["Std_residual"] >= 3) | (final_file["Std_residual"] <= -3)), 'Confidence'] = 'LOW'
-    final_file.loc[(final_file["Confidence"] >= h3) & ((final_file["Std_residual"] <= 3) | (final_file["Std_residual"] >= -3)), 'Confidence'] = 'MEDIUM'
+    final_file.loc[(final_file["Confidence"] == True) & ((final_file["Std_residual"] == 'Inside AD' )), 'Confidence'] = 'HIGH'
+    final_file.loc[(final_file["Confidence"] == True) & ((final_file["Std_residual"] == 'Outside AD')), 'Confidence'] = 'LOW'
+    final_file.loc[(final_file["Confidence"] == False) & ((final_file["Std_residual"] == 'Inside AD')), 'Confidence'] = 'MEDIUM'
 
 
             
@@ -265,11 +272,7 @@ def predictions(loaded_model, loaded_desc, X_final1):
     return final_file, styled_df
 
 
-
 #%% Create plot:
-
-
-
 
 #def final_plot(final_file):
  #   non_conclusives = len(final_file[final_file['Confidence'] == "LOW"]) 
@@ -316,10 +319,10 @@ if uploaded_file_1 is not None:
         data = pd.read_csv(uploaded_file_1,) 
         train_data = data_train[loaded_desc]
         test_data, id_list =  reading_reorder(data)
-        X_final1, id = all_correct_model(test_data,loaded_desc, id_list) 
-        df_train_normalized, df_test_normalized = normalize_data(train_data, X_final1)
-       
-        final_file, styled_df = predictions(loaded_model, loaded_desc, X_final1)
+        X_final1, id = all_correct_model(test_data,loaded_desc, id_list)
+        X_final2= X_final1.iloc[:,1:]
+        df_train_normalized, df_test_normalized = normalize_data(train_data, X_final2)
+        final_file, styled_df = predictions(loaded_model, loaded_desc, df_test_normalized)
         figure  = final_plot(final_file)  
         col1, col2 = st.columns(2)
 
@@ -338,9 +341,12 @@ else:
     st.info('👈🏼👈🏼👈🏼   Awaiting for CSV file to be uploaded.')
     if st.button('Press to use Example CSV Dataset with Alvadesc Descriptors'):
         data = pd.read_csv("example_file.csv")
-        descriptors_total, id =  reading_reorder(data)
-        X_final1, id = all_correct_model(descriptors_total,loaded_desc, id_list)
-        final_file, styled_df = predictions(loaded_model, loaded_desc, X_final1)
+        train_data = data_train[loaded_desc]
+        test_data, id_list =  reading_reorder(data)
+        X_final1, id = all_correct_model(test_data,loaded_desc, id_list)
+        X_final2= X_final1.iloc[:,1:]
+        df_train_normalized, df_test_normalized = normalize_data(train_data, X_final2)
+        final_file, styled_df = predictions(loaded_model, loaded_desc, df_test_normalized)
         figure  = final_plot(final_file)  
         col1, col2 = st.columns(2)
         with col1:
