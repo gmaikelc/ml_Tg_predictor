@@ -166,7 +166,7 @@ def applicability_domain(x_test_normalized, x_train_normalized):
 
 #%% Removing molecules with na in any descriptor
 
-def all_correct_model(test_data,loaded_desc, id_list):
+def all_correct_model(test_data,loaded_desc, id_lists):
     
     total_desc = []
     for descriptor_set in loaded_desc:
