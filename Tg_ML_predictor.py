@@ -304,7 +304,7 @@ def filedownload1(df):
 
 #%% RUN
 
-data_train = pd.read_csv("data_902_original_15desc_logTg_train.csv")
+data_train = pd.read_csv("data/" + "data_902_original_15desc_logTg_train.csv")
 mean_value = data_train['logTg'].mean()
 
 
