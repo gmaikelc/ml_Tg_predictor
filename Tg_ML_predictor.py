@@ -20,6 +20,17 @@ import numpy as np
 from rdkit.Chem import AllChem
 import plotly.graph_objects as go
 
+#Import Libraries
+import pandas as pd
+import numpy as np
+import math 
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import r2_score
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_predict
+from sklearn.linear_model import LinearRegression
+from sklearn import preprocessing
+
 # packages for streamlit
 import streamlit as st
 from PIL import Image
@@ -80,290 +91,82 @@ st.image(image, caption='Tg ML predictor workflow')
 # Sidebar - Collects user input features into dataframe
 st.sidebar.header('Upload your SMILES')
 st.sidebar.markdown("""
-[Example TXT input file](https://raw.githubusercontent.com/gmaikelc/ml_Tg_predictor/main/example_file.txt) 
+[Example CSV input file](https://raw.githubusercontent.com/gmaikelc/ml_Tg_predictor/main/example_file.csv) 
 
 """)
 
-uploaded_file_1 = st.sidebar.file_uploader("Upload a TXT file with one SMILES per line", type=["txt"])
+uploaded_file_1 = st.sidebar.file_uploader("Upload a CSV file with one compound per line", type=["csv"])
 
 
-#%% Standarization by MOLVS ####
+#%% Reading data and reording if needed ####
 ####---------------------------------------------------------------------------####
 
-def standardizer(df):
-    s = Standardizer()
-    molecules = df[0].tolist()
-    standardize_molecules = []
-    i = 1
-    t = st.empty()
-
-    for molecule in molecules:
-        try:
-            smiles = molecule.strip()
-            mol = Chem.MolFromSmiles(smiles)
-            standarized_mol = s.super_parent(mol) 
-            standardize_smiles = Chem.MolToSmiles(standarized_mol)
-            standardize_molecules.append(standardize_smiles)
-            # st.write(f'\rProcessing molecule {i}/{len(molecules)}', end='', flush=True)
-            t.markdown("Processing molecules: " + str(i) +"/" + str(len(molecules)))
-
-            i = i + 1
-        except:
-            standardize_molecules.append(molecule)
-    df['standarized_SMILES'] = standardize_molecules
-    return df
-
-
-#%% Protonation state at pH 7.4 ####
-####---------------------------------------------------------------------------####
-
-def charges_ph(molecule, ph):
-
-    # obConversion it's neccesary for saving the objects
-    obConversion = openbabel.OBConversion()
-    obConversion.SetInAndOutFormats("smi", "smi")
+def reading_reorder(data):
+     
+   
+    #Select the specified columns from the DataFrame
+    df_selected = data[loaded_desc]
+    id = data.iloc[:,0]
+    # Order the DataFrame by the specified list of columns
+    test_data = df_selected.reindex(columns=loaded_desc)
+    #descriptors_total = data[loaded_desc]
     
-    # create the OBMol object and read the SMILE
-    mol = openbabel.OBMol()
-    obConversion.ReadString(mol, molecule)
-    
-    # Add H, correct pH and add H again, it's the only way it works
-    mol.AddHydrogens()
-    mol.CorrectForPH(7.4)
-    mol.AddHydrogens()
-    
-    # transforms the OBMOl objecto to string (SMILES)
-    optimized = obConversion.WriteString(mol)
-    
-    return optimized
-
-def smile_obabel_corrector(smiles_ionized):
-    mol1 = Chem.MolFromSmiles(smiles_ionized, sanitize = False)
-    
-    # checks if the ether group is wrongly protonated
-    pattern1 = Chem.MolFromSmarts('[#6]-[#8-]-[#6]')
-    if mol1.HasSubstructMatch(pattern1):
-        # gets the atom number for the O wrongly charged
-        at_matches = mol1.GetSubstructMatches(pattern1)
-        at_matches_list = [y[1] for y in at_matches]
-        # changes the charged for each O atom
-        for at_idx in at_matches_list:
-            atom = mol1.GetAtomWithIdx(at_idx)
-            atom.SetFormalCharge(0)
-            atom.UpdatePropertyCache()
-
-    pattern12 = Chem.MolFromSmarts('[#6]-[#8-]-[#16]')
-    if mol1.HasSubstructMatch(pattern12):
-        # gets the atom number for the O wrongly charged
-        at_matches = mol1.GetSubstructMatches(pattern12)
-        at_matches_list = [y[1] for y in at_matches]
-        # changes the charged for each O atom
-        for at_idx in at_matches_list:
-            atom = mol1.GetAtomWithIdx(at_idx)
-            atom.SetFormalCharge(0)
-            atom.UpdatePropertyCache()
-            
-    # checks if the nitro group is wrongly protonated in the oxygen
-    pattern2 = Chem.MolFromSmarts('[#6][O-]=[N+](=O)[O-]')
-    if mol1.HasSubstructMatch(pattern2):
-        # print('NO 20')
-        patt = Chem.MolFromSmiles('[O-]=[N+](=O)[O-]', sanitize = False)
-        repl = Chem.MolFromSmiles('O[N+]([O-])=O')
-        rms = AllChem.ReplaceSubstructs(mol1,patt,repl,replaceAll=True)
-        mol1 = rms[0]
-
-    # checks if the nitro group is wrongly protonated in the oxygen
-    pattern21 = Chem.MolFromSmarts('[#6]-[O-][N+](=O)=[O-]')
-    if mol1.HasSubstructMatch(pattern21):
-        # print('NO 21')
-        patt = Chem.MolFromSmiles('[O-][N+](=O)=[O-]', sanitize = False)
-        repl = Chem.MolFromSmiles('[O][N+](=O)-[O-]')
-        rms = AllChem.ReplaceSubstructs(mol1,patt,repl,replaceAll=True)
-        mol1 = rms[0]
-        
-    # checks if the nitro group is wrongly protonated, different disposition of atoms
-    pattern22 = Chem.MolFromSmarts('[#8-][N+](=[#6])=[O-]')
-    if mol1.HasSubstructMatch(pattern22):
-        # print('NO 22')
-        patt = Chem.MolFromSmiles('[N+]([O-])=[O-]', sanitize = False)
-        repl = Chem.MolFromSmiles('[N+]([O-])-[O-]')
-        rms = AllChem.ReplaceSubstructs(mol1,patt,repl,replaceAll=True)
-        mol1 = rms[0]
-
-    # checks if the nitro group is wrongly protonated, different disposition of atoms
-    pattern23 = Chem.MolFromSmarts('[#6][N+]([#6])([#8-])=[O-]')
-    if mol1.HasSubstructMatch(pattern23):
-        # print('NO 23')
-        patt = Chem.MolFromSmiles('[N+]([O-])=[O-]', sanitize = False)
-        repl = Chem.MolFromSmiles('[N+]([O-])[O-]')
-        rms = AllChem.ReplaceSubstructs(mol1,patt,repl,replaceAll=True)
-        mol1 = rms[0]
-
-    # checks if the nitro group is wrongly protonated, different disposition of atoms
-    pattern24 = Chem.MolFromSmarts('[#6]-[#8][N+](=O)=[O-]')
-    if mol1.HasSubstructMatch(pattern24):
-        # print('NO 24')
-        patt = Chem.MolFromSmiles('[O][N+](=O)=[O-]', sanitize = False)
-        repl = Chem.MolFromSmiles('[O][N+](=O)[O-]')
-        rms = AllChem.ReplaceSubstructs(mol1,patt,repl,replaceAll=True)
-        mol1 = rms[0]
-
-    # checks if the 1H-tetrazole group is wrongly protonated
-    pattern3 = Chem.MolFromSmarts('[#7]-1-[#6]=[#7-]-[#7]=[#7]-1')
-    if mol1.HasSubstructMatch(pattern3):
-        # gets the atom number for the N wrongly charged
-        at_matches = mol1.GetSubstructMatches(pattern3)
-        at_matches_list = [y[2] for y in at_matches]
-        # changes the charged for each N atom
-        for at_idx in at_matches_list:
-            atom = mol1.GetAtomWithIdx(at_idx)
-            atom.SetFormalCharge(0)
-            atom.UpdatePropertyCache()
-
-    # checks if the 2H-tetrazole group is wrongly protonated
-    pattern4 = Chem.MolFromSmarts('[#7]-1-[#7]=[#6]-[#7-]=[#7]-1')
-    if mol1.HasSubstructMatch(pattern4):
-        # gets the atom number for the N wrongly charged
-        at_matches = mol1.GetSubstructMatches(pattern4)
-        at_matches_list = [y[3] for y in at_matches]
-        # changes the charged for each N atom
-        for at_idx in at_matches_list:
-            atom = mol1.GetAtomWithIdx(at_idx)
-            atom.SetFormalCharge(0)
-            atom.UpdatePropertyCache()
-        
-    # checks if the 2H-tetrazole group is wrongly protonated, different disposition of atoms
-    pattern5 = Chem.MolFromSmarts('[#7]-1-[#7]=[#7]-[#6]=[#7-]-1')
-    if mol1.HasSubstructMatch(pattern5):
-        # gets the atom number for the N wrongly charged
-        at_matches = mol1.GetSubstructMatches(pattern4)
-        at_matches_list = [y[4] for y in at_matches]
-        # changes the charged for each N atom
-        for at_idx in at_matches_list:
-            atom = mol1.GetAtomWithIdx(at_idx)
-            atom.SetFormalCharge(0)
-            atom.UpdatePropertyCache()
-
-    smile_checked = Chem.MolToSmiles(mol1)
-    return smile_checked
+    return test_data, id
 
 
-
-#%% formal charge calculation
-
-def formal_charge_calculation(descriptores):
-    smiles_list = descriptores["Smiles_OK"]
-    charges = []
-    for smiles in smiles_list:
-        try:
-            mol = Chem.MolFromSmiles(smiles)
-            charge = Chem.rdmolops.GetFormalCharge(mol)
-            charges.append(charge)
-        except:
-            charges.append(None)
-        
-    descriptores["Formal_charge"] = charges
-    return descriptores
-
-
-#%% Calculating molecular descriptors
+#%% normalizing data
 ### ----------------------- ###
 
-def calculating_descriptors(data):
-    
-    data1x = pd.DataFrame()
-    df_prev_final_standardize = standardizer(data)
-    suppl = list(df_prev_final_standardize["standarized_SMILES"])
+def normalize_data(train_data, test_data):
+    # Normalize the training data
+    df_train = pd.DataFrame(train_data)
+    saved_cols = df_train.columns
+    min_max_scaler = preprocessing.MinMaxScaler().fit(df_train)
+    np_train_scaled = min_max_scaler.transform(df_train)
+    df_train_normalized = pd.DataFrame(np_train_scaled, columns=saved_cols)
 
-    smiles_ph_ok = []
-    t = st.empty()
+    # Normalize the test data using the scaler fitted on training data
+    np_test_scaled = min_max_scaler.transform(test_data)
+    df_test_normalized = pd.DataFrame(np_test_scaled, columns=saved_cols)
 
-    for i,molecule in enumerate(suppl):
-        smiles_ionized = charges_ph(molecule, 7.4)
-        smile_checked = smile_obabel_corrector(smiles_ionized)
-        smile_final = smile_checked.rstrip()
-        smiles_ph_ok.append(smile_final)
-        
-    df_prev_final_standardize["Final_SMILES"] = smiles_ph_ok
-    
-    calc = Calculator(descriptors, ignore_3D=True) 
-    # t = st.empty()
-   
-    smiles_ok = []
-    for i,smiles in enumerate(smiles_ph_ok):
-        if __name__ == "__main__":
-                if smiles != None:
-                    try:
-                        mol = Chem.MolFromSmiles(smiles)
-                        freeze_support()
-                        descriptor1 = calc(mol)
-                        resu = descriptor1.asdict()
-                        solo_nombre = {'NAME' : f'SMILES_{i+1}'}
-                        solo_nombre.update(resu)
+    return df_train_normalized, df_test_normalized
 
-                        solo_nombre = pd.DataFrame.from_dict(data=solo_nombre,orient="index")
-                        data1x = pd.concat([data1x, solo_nombre],axis=1, ignore_index=True)
-                        smiles_ok.append(smiles)
-                        t.markdown("Calculating descriptors for molecule: " + str(i +1) +"/" + str(len(smiles_ph_ok)))
-                    except:
-                        
-                        st.write(f'\rMolecule {smiles} has been removed (molecule not allowed by Mordred descriptor)')
-                else:
-                    pass
-
-    data1x = data1x.T
-    descriptores = data1x.set_index('NAME',inplace=False).copy()
-    descriptores = descriptores.reindex(sorted(descriptores.columns), axis=1)   
-    descriptores.replace([np.inf, -np.inf], np.nan, inplace=True)
-    descriptores = descriptores.apply(pd.to_numeric, errors = 'coerce') 
-    descriptores["Smiles_OK"] = smiles_ok
-    descriptors_total = formal_charge_calculation(descriptores)
-    
-    return descriptors_total, smiles_ok
+# Example usage
+#x_train_normalized, x_test_normalized = normalize_data(x_train, x_test)
 
 #%% Determining Applicability Domain (AD)
 
-def applicability_domain(prediction_set_descriptors, descriptors_model):
+def applicability_domain(x_test_normalized, x_train_normalized):
     
-    descr_training = pd.read_csv("models/" + "OCT1_training_DA.csv")
-    desc = descr_training[descriptors_model]
-    t_transpuesto = desc.T
-    multi = t_transpuesto.dot(desc)
-    inversa = np.linalg.inv(multi)
+    descr_training = x_train_normalized.values
+    # Calculate leverage and standard deviation for the training set
+    hat_matrix_train = X_train @ np.linalg.inv(X_train.T @ X_train) @ X_train.T
+    leverage_train = np.diagonal(hat_matrix_train)
+    leverage_train=leverage_train.ravel()
     
-    # Luego la base de testeo
-    desc_sv = prediction_set_descriptors.copy()
-    sv_transpuesto = desc_sv.T
+    # Calculate leverage and standard deviation for the test set
+    hat_matrix_test = X_test @ np.linalg.inv(X_train.T @ X_train) @ X_test.T
+    leverage_test = np.diagonal(hat_matrix_test)
+    leverage_test=leverage_test.ravel()
     
-    multi1 = desc_sv.dot(inversa)
-    sv_transpuesto.reset_index(drop=True, inplace=True) 
-    multi2 = multi1.dot(sv_transpuesto)
-    diagonal = np.diag(multi2)
+    # threshold for the applicability domain
     
-    # valor de corte para determinar si entra o no en el DA
+    #h2 = 2*(desc.shape[1]/desc.shape[0])  ## El h es 2 x Num de descriptores dividido el Num compuestos training. Mas estricto
+    h3 = 3*((x_train_normalized.shape[1]+1)/x_train_normalized.shape[0])  ##  Mas flexible
     
-    h2 = 2*(desc.shape[1]/desc.shape[0])  ## El h es 2 x Num de descriptores dividido el Num compuestos training. Mas estricto
-    h3 = 3*(desc.shape[1]/desc.shape[0])  ##  Mas flexible
-    
-    diagonal_comparacion = list(diagonal)
-    resultado_palanca2 =[]
-    for valor in diagonal_comparacion:
-        if valor < h2:
-            resultado_palanca2.append(True)
-        else:
-            resultado_palanca2.append(False)
-    resultado_palanca3 =[]
-    for valor in diagonal_comparacion:
+    diagonal_compare = list(leverage_test)
+    h_results =[]
+    for valor in diagonal_compare:
         if valor < h3:
-            resultado_palanca3.append(True)
+            h_results.append(True)
         else:
-            resultado_palanca3.append(False)         
-    return resultado_palanca2, resultado_palanca3
+            h_results.append(False)         
+    return h_results
 
 
 #%% Removing molecules with na in any descriptor
 
-def all_correct_model(descriptors_total,loaded_desc, smiles_list):
+def all_correct_model(test_data,loaded_desc, id):
     
     total_desc = []
     for descriptor_set in loaded_desc:
@@ -373,15 +176,15 @@ def all_correct_model(descriptors_total,loaded_desc, smiles_list):
             else:
                 pass
             
-    X_final = descriptors_total[total_desc]
-    X_final["SMILES_OK"] = smiles_list
+    X_final = test_data[total_desc]
+    X_final["ID"] = id_list
     rows_with_na = X_final[X_final.isna().any(axis=1)]         # Find rows with NaN values
-    for molecule in rows_with_na["SMILES_OK"]:
+    for molecule in rows_with_na["ID"]:
         st.write(f'\rMolecule {molecule} has been removed (NA value  in any of the necessary descriptors)')
     X_final1 = X_final.dropna(axis=0,how="any",inplace=False)
     
-    smiles_final = X_final1["SMILES_OK"]
-    return X_final1, smiles_final
+    id = X_final1["ID"]
+    return X_final1, id
 
  # Function to assign colors based on confidence values
 def get_color(confidence):
@@ -395,7 +198,7 @@ def get_color(confidence):
         str: The color in hexadecimal format (e.g., '#RRGGBB').
     """
     # Define your color logic here based on confidence
-    if confidence == "HIGH" or confidence == "Substrate":
+    if confidence == "HIGH" or confidence == "Inside AD":
         return 'lightgreen'
     elif confidence == "MEDIUM":
         return 'yellow'
@@ -407,8 +210,7 @@ def get_color(confidence):
 
 def predictions(loaded_model, loaded_desc, X_final1):
     scores = []
-    palancas2 = []
-    palancas3 = []
+    h_values = []
 
     i = 0
     
@@ -417,38 +219,47 @@ def predictions(loaded_model, loaded_desc, X_final1):
         
         X = X_final1[descriptors_model]
         predictions = estimator.predict(X)
-    
         scores.append(predictions)
-        resultado_palanca2, resultado_palanca3  = applicability_domain(X, descriptors_model)
-        palancas2.append(resultado_palanca2)
-        palancas3.append(resultado_palanca3)
-        i = i + 1 
-    
-    dataframe_scores = pd.DataFrame(scores).T
-    dataframe_scores.index = smiles_final
-    
-    palancas_final2 = pd.DataFrame(palancas2).T
-    palancas_final2.index = smiles_final
-    palancas_final2['Confidence'] = (palancas_final2.sum(axis=1) / len(palancas_final2.columns)) * 100
-    
-    palancas_final3 = pd.DataFrame(palancas3).T
-    palancas_final3.index = smiles_final
-    palancas_final3['Confidence3'] = (palancas_final3.sum(axis=1) / len(palancas_final3.columns)) * 100
+        
+        # y_true and y_pred are the actual and predicted values, respectively
+        y_test =mean_value
+        residuals_test = y_test -predictions
 
-    score_ensemble = dataframe_scores.min(axis=1)
-    classification = score_ensemble >= 0.44
-    classification = classification.replace({True: 'Substrate', False: 'Non Substrate'})
-    
-    final_file = pd.concat([classification,palancas_final2['Confidence'], palancas_final3['Confidence3']], axis=1)
-    
-    final_file.rename(columns={0: "Prediction"},inplace=True)
-    
-    final_file.loc[final_file["Confidence"] >= 50, 'Confidence'] = 'HIGH'
-    final_file.loc[(final_file["Confidence3"] >= 50) & (final_file["Confidence"] != "HIGH"), 'Confidence'] = 'MEDIUM'
-    final_file.loc[final_file["Confidence3"] < 50, 'Confidence'] = 'LOW'
+        std_dev_test = np.sqrt(mean_squared_error(y_test, y_pred_test))
+        std_residual_test = (y_test - y_pred_test) / std_dev_test
+        std_residual_test = std_residual_test.ravel()
+          
+        std_resd.append(std_residual_test)
+        
+        h_results  = applicability_domain(X, descriptors_model)
+        h_values.append(h_results)
+       i = i + 1 
 
-    final_file.loc[final_file["Confidence3"] < 50, 'Prediction'] = 'No conclusive'
-    final_file.drop(columns=['Confidence3'],inplace=True)
+    dataframe_pred = pd.DataFrame(scores).T
+    dataframe_pred.index = id
+    dataframe_std = pd.DataFrame(std_resd).T
+    dataframe_std.index = id
+    
+        
+    h_final = pd.DataFrame(h_values).T
+    h_final.index = id
+    h_final['Confidence'] = (h_final.sum(axis=1) / len(h_final.columns)) * 1
+
+    std_ensemble = dataframe_std.min(axis=1)
+    # Create a mask using boolean indexing
+    std_ad_calc = (score_ensemble >= 3) | (score_ensemble <= -3) 
+    std_ad_calc = std_ad_calc.replace({True: 'Outside AD', False: 'Inside AD'})
+    
+    final_file = pd.concat([std_ad_calc,h_final['Confidence'],dataframe_pred], axis=1)
+    
+    final_file.rename(columns={0: "Std_residual",2: "Predictions"},inplace=True)
+    
+
+    final_file.loc[(final_file["Confidence"] <= h3) & ((final_file["Std_residual"] <= 3) | (final_file["Std_residual"] >= -3)), 'Confidence'] = 'HIGH'
+    final_file.loc[(final_file["Confidence"] <= h3) & ((final_file["Std_residual"] >= 3) | (final_file["Std_residual"] <= -3)), 'Confidence'] = 'LOW'
+    final_file.loc[(final_file["Confidence"] >= h3) & ((final_file["Std_residual"] <= 3) | (final_file["Std_residual"] >= -3)), 'Confidence'] = 'MEDIUM'
+
+
             
     df_no_duplicates = final_file[~final_file.index.duplicated(keep='first')]
     styled_df = df_no_duplicates.style.apply(lambda row: [f"background-color: {get_color(row['Confidence'])}" for _ in row],subset=["Confidence"], axis=1)
@@ -462,16 +273,16 @@ def predictions(loaded_model, loaded_desc, X_final1):
 
 
 
-def final_plot(final_file):
-    non_conclusives = len(final_file[final_file['Confidence'] == "LOW"]) 
-    substrates_hc = len(final_file[(final_file['Confidence'] == "HIGH") & (final_file['Prediction'] == 'Substrate')])
-    substrates_mc = len(final_file[(final_file['Confidence'] == "MEDIUM") & (final_file['Prediction'] == 'Substrate')])
+#def final_plot(final_file):
+ #   non_conclusives = len(final_file[final_file['Confidence'] == "LOW"]) 
+  #  substrates_hc = len(final_file[(final_file['Confidence'] == "HIGH") & (final_file['Prediction'] == 'Substrate')])
+  #  substrates_mc = len(final_file[(final_file['Confidence'] == "MEDIUM") & (final_file['Prediction'] == 'Substrate')])
 
     # Count values in 'DA' column higher than 50 and 'class' is 'no'
-    non_substrates_hc = len(final_file[(final_file['Confidence'] == "HIGH") & (final_file['Prediction'] == 'Non Substrate')])
-    non_substrates_mc = len(final_file[(final_file['Confidence'] == "MEDIUM") & (final_file['Prediction'] == 'Non Substrate')])
-    keys = ["Substrate - High confidence", "Substrate - Medium confidence", "Non Substrate - High confidence", "Non Substrate - Medium confidence", "Non conclusive"]
-    fig = go.Figure(go.Pie(labels=keys, values=[substrates_hc, substrates_mc, non_substrates_hc, non_substrates_mc, non_conclusives]))
+   # non_substrates_hc = len(final_file[(final_file['Confidence'] == "HIGH") & (final_file['Prediction'] == 'Non Substrate')])
+   # non_substrates_mc = len(final_file[(final_file['Confidence'] == "MEDIUM") & (final_file['Prediction'] == 'Non Substrate')])
+   # keys = ["Substrate - High confidence", "Substrate - Medium confidence", "Non Substrate - High confidence", "Non Substrate - Medium confidence", "Non conclusive"]
+    #fig = go.Figure(go.Pie(labels=keys, values=[substrates_hc, substrates_mc, non_substrates_hc, non_substrates_mc, non_conclusives]))
     
     #fig.update_layout(plot_bgcolor = 'rgb(256,256,256)', title_text="Global Emissions 1990-2011",
                             #title_font = dict(size=25, family='Calibri', color='black'),
@@ -479,30 +290,37 @@ def final_plot(final_file):
                             #legend_title_font = dict(size=18, family='Calibri', color='black'),
                             #legend_font = dict(size=15, family='Calibri', color='black'))
     
-    fig.update_layout(title_text=None)
+    #fig.update_layout(title_text=None)
     
-    return fig
+    #return fig
 
 
 #%%
 def filedownload1(df):
     csv = df.to_csv(index=True,header=True)
     b64 = base64.b64encode(csv.encode()).decode()  # strings <-> bytes conversions
-    href = f'<a href="data:file/csv;base64,{b64}" download="OCT1_class_results.csv">Download CSV File with results</a>'
+    href = f'<a href="data:file/csv;base64,{b64}" download="Tg_ml_results.csv">Download CSV File with results</a>'
     return href
 
-#%% CORRIDA
+#%% RUN
 
-loaded_model = pickle.load(open("models/" + "OCT1_models.pickle", 'rb'))
-loaded_desc = pickle.load(open("models/" + "OCT1_descriptors.pickle", 'rb'))
+data_train = pd.read_csv("data_902_original_15desc_logTg_train.csv")
+mean_value = data_train['logTg'].mean()
+
+
+loaded_model = pickle.load(open("models/" + "svr_model.pickle", 'rb'))
+loaded_desc = pickle.load(open("models/" + "Tg_ml_descriptors.pickle", 'rb'))
 
 
 if uploaded_file_1 is not None:
     run = st.button("RUN")
     if run == True:
-        data = pd.read_csv(uploaded_file_1,sep="\t",header=None)       
-        descriptors_total, smiles_list = calculating_descriptors(data)
-        X_final1, smiles_final = all_correct_model(descriptors_total,loaded_desc, smiles_list)
+        data = pd.read_csv(uploaded_file_1,) 
+        train_data = data_train[loaded_desc]
+        test_data, id_list =  reading_reorder(data)
+        X_final1, id = all_correct_model(test_data,loaded_desc, id_list) 
+        df_train_normalized, df_test_normalized = normalize_data(train_data, X_final1)
+       
         final_file, styled_df = predictions(loaded_model, loaded_desc, X_final1)
         figure  = final_plot(final_file)  
         col1, col2 = st.columns(2)
@@ -519,10 +337,10 @@ if uploaded_file_1 is not None:
 
 # Example file
 else:
-    st.info('👈🏼👈🏼👈🏼      Awaiting for TXT file to be uploaded.')
-    if st.button('Press to use Example Dataset'):
-        data = pd.read_csv("example_file.txt",sep="\t",header=None)
-        descriptors_total, smiles_list = calculating_descriptors(data)
+    st.info('👈🏼👈🏼👈🏼      Awaiting for CSV file to be uploaded.')
+    if st.button('Press to use Example CSV Dataset'):
+        data = pd.read_csv("example_file.csv")
+        descriptors_total, id =  reading_reorder(data)
         X_final1, smiles_final = all_correct_model(descriptors_total,loaded_desc, smiles_list)
         final_file, styled_df = predictions(loaded_model, loaded_desc, X_final1)
         figure  = final_plot(final_file)  
