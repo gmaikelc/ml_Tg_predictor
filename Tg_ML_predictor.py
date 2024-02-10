@@ -11,9 +11,9 @@ Created on Mon Nov 27 13:41:37 2023
 from pathlib import Path
 import pandas as pd
 import pickle
-from molvs import Standardizer
+#from molvs import Standardizer
 from rdkit import Chem
-from openbabel import openbabel
+#from openbabel import openbabel
 from mordred import Calculator, descriptors
 from multiprocessing import freeze_support
 import numpy as np
@@ -30,6 +30,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import cross_val_predict
 from sklearn.linear_model import LinearRegression
 from sklearn import preprocessing
+from sklearn.metrics import mean_squared_error
 
 # packages for streamlit
 import streamlit as st
