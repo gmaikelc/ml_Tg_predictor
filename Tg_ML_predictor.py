@@ -200,7 +200,6 @@ def get_color(confidence):
     elif confidence == "MEDIUM":
         return 'yellow'
     else:
-        confidence == "LOW"
         return 'red'
 
 
@@ -264,6 +263,7 @@ def predictions(loaded_model, loaded_desc, df_test_normalized):
 
     final_file.loc[(final_file["Confidence"] == True) & ((final_file["Std_residual"] == 'Inside AD' )), 'Confidence'] = 'HIGH'
     final_file.loc[(final_file["Confidence"] == True) & ((final_file["Std_residual"] == 'Outside AD')), 'Confidence'] = 'LOW'
+    final_file.loc[(final_file["Confidence"] == False) & ((final_file["Std_residual"] == 'Outside AD')), 'Confidence'] = 'LOW'
     final_file.loc[(final_file["Confidence"] == False) & ((final_file["Std_residual"] == 'Inside AD')), 'Confidence'] = 'MEDIUM'
 
 
