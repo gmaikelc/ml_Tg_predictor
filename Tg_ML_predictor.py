@@ -165,18 +165,17 @@ def applicability_domain(x_test_normalized, x_train_normalized):
 
 #%% Removing molecules with na in any descriptor
 
-def all_correct_model(test_data,loaded_desc, id_lists):
+#%% Removing molecules with na in any descriptor
+
+def all_correct_model(test_data,loaded_desc, id_list):
     
-    total_desc = []
-    for descriptor_set in loaded_desc:
-        for desc in descriptor_set:
-            if not desc in total_desc:
-                total_desc.append(desc)
-            else:
-                pass
-            
-    X_final = test_data[total_desc]
+    X_final = test_data[loaded_desc]
     X_final["ID"] = id_list
+    # Assuming X_final is your DataFrame
+    id_list = X_final["ID"]  # Extract the ID column
+    X_final.drop(columns=["ID"], inplace=True)  # Drop the ID column from its original position
+    X_final.insert(0, "ID", id_list)  # Insert the ID column at the first position
+    
     rows_with_na = X_final[X_final.isna().any(axis=1)]         # Find rows with NaN values
     for molecule in rows_with_na["ID"]:
         st.write(f'\rMolecule {molecule} has been removed (NA value  in any of the necessary descriptors)')
