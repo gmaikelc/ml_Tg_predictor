@@ -89,7 +89,7 @@ st.image(image, caption='Tg ML predictor workflow')
 
 #---------------------------------#
 # Sidebar - Collects user input features into dataframe
-st.sidebar.header('Upload your SMILES')
+st.sidebar.header('Upload your CSV file')
 st.sidebar.markdown("""
 [Example CSV input file](https://raw.githubusercontent.com/gmaikelc/ml_Tg_predictor/main/example_file.csv) 
 
@@ -341,7 +341,7 @@ else:
     if st.button('Press to use Example CSV Dataset'):
         data = pd.read_csv("example_file.csv")
         descriptors_total, id =  reading_reorder(data)
-        X_final1, smiles_final = all_correct_model(descriptors_total,loaded_desc, smiles_list)
+        X_final1, id = all_correct_model(descriptors_total,loaded_desc, id_list)
         final_file, styled_df = predictions(loaded_model, loaded_desc, X_final1)
         figure  = final_plot(final_file)  
         col1, col2 = st.columns(2)
