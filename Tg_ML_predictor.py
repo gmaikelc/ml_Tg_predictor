@@ -277,9 +277,9 @@ def predictions(loaded_model, loaded_desc, df_test_normalized):
 
 def final_plot(final_file):
     
-    confident_tg = len(final_file[(final_file['Confidence'] == "HIGH"])
-    medium_confident_tg = len(final_file[(final_file['Confidence'] == "MEDIUM"])
-    non_confident_tg = len(final_file[final_file['Confidence'] == "LOW"])
+    confident_tg = len(final_file[(final_file['Confidence'] == "HIGH")])
+    medium_confident_tg = len(final_file[(final_file['Confidence'] == "MEDIUM")])
+    non_confident_tg = len(final_file[final_file['Confidence'] == "LOW")])
     
     keys = ["High confidence", "Medium confidence", "Low confidence",]
     fig = go.Figure(go.Pie(labels=keys, values=[confident_tg, medium_confident_tg, non_confident_tg]))
