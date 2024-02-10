@@ -275,26 +275,24 @@ def predictions(loaded_model, loaded_desc, df_test_normalized):
 
 #%% Create plot:
 
-#def final_plot(final_file):
- #   non_conclusives = len(final_file[final_file['Confidence'] == "LOW"]) 
-  #  substrates_hc = len(final_file[(final_file['Confidence'] == "HIGH") & (final_file['Prediction'] == 'Substrate')])
-  #  substrates_mc = len(final_file[(final_file['Confidence'] == "MEDIUM") & (final_file['Prediction'] == 'Substrate')])
-
-    # Count values in 'DA' column higher than 50 and 'class' is 'no'
-   # non_substrates_hc = len(final_file[(final_file['Confidence'] == "HIGH") & (final_file['Prediction'] == 'Non Substrate')])
-   # non_substrates_mc = len(final_file[(final_file['Confidence'] == "MEDIUM") & (final_file['Prediction'] == 'Non Substrate')])
-   # keys = ["Substrate - High confidence", "Substrate - Medium confidence", "Non Substrate - High confidence", "Non Substrate - Medium confidence", "Non conclusive"]
-    #fig = go.Figure(go.Pie(labels=keys, values=[substrates_hc, substrates_mc, non_substrates_hc, non_substrates_mc, non_conclusives]))
+def final_plot(final_file):
     
-    #fig.update_layout(plot_bgcolor = 'rgb(256,256,256)', title_text="Global Emissions 1990-2011",
-                            #title_font = dict(size=25, family='Calibri', color='black'),
-                            #font =dict(size=20, family='Calibri'),
-                            #legend_title_font = dict(size=18, family='Calibri', color='black'),
-                            #legend_font = dict(size=15, family='Calibri', color='black'))
+    confident_tg = len(final_file[(final_file['Confidence'] == "HIGH"])
+    medium_confident_tg = len(final_file[(final_file['Confidence'] == "MEDIUM"])
+    non_confident_tg = len(final_file[final_file['Confidence'] == "LOW"])
     
-    #fig.update_layout(title_text=None)
+    keys = ["High confidence", "Medium confidence", "Low confidence",]
+    fig = go.Figure(go.Pie(labels=keys, values=[confident_tg, medium_confident_tg, non_confident_tg]))
     
-    #return fig
+    fig.update_layout(plot_bgcolor = 'rgb(256,256,256)', title_text="Global Emissions 1990-2011",
+                            title_font = dict(size=25, family='Calibri', color='black'),
+                            font =dict(size=20, family='Calibri'),
+                            legend_title_font = dict(size=18, family='Calibri', color='black'),
+                            legend_font = dict(size=15, family='Calibri', color='black'))
+    
+    fig.update_layout(title_text=None)
+    
+    return fig
 
 
 #%%
