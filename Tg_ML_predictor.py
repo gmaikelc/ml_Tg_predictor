@@ -66,8 +66,8 @@ The change of these mechanical properties also specifies the employment of the m
 
 The Tg ML predictor is a Web App that use a SVM regression model to predict the glass transition temperature. 
 
-The tool uses the following packages [RDKIT](https://www.rdkit.org/docs/index.html), [Mordred](https://github.com/mordred-descriptor/mordred), [MOLVS](https://molvs.readthedocs.io/), [Openbabel](https://github.com/openbabel/openbabel)
-
+The tool uses the following packages [RDKIT](https://www.rdkit.org/docs/index.html), [Mordred](https://github.com/mordred-descriptor/mordred), [MOLVS](https://molvs.readthedocs.io/), [Openbabel](https://github.com/openbabel/openbabel),
+[Scikit-learn](https://scikit-learn.org/stable/)
 **Workflow:**
 """)
 
