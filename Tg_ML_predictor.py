@@ -233,7 +233,7 @@ def predictions(loaded_model, loaded_desc, X_final1):
         
         h_results  = applicability_domain(X, descriptors_model)
         h_values.append(h_results)
-       i = i + 1 
+    i = i + 1 
 
     dataframe_pred = pd.DataFrame(scores).T
     dataframe_pred.index = id
