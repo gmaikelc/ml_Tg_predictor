@@ -243,11 +243,15 @@ def predictions(loaded_model, loaded_desc, df_test_normalized):
     dataframe_std = pd.DataFrame(std_resd).T
     dataframe_std.index = idx
     
+    
         
     h_final = pd.DataFrame(h_values).T
     h_final.index = idx
     h_final.rename(columns={0: "Confidence"},inplace=True)
-    
+
+    leverage = h_final
+    leverage.rename(columns={"Confidence": "Leverage"},inplace=True)
+    leverage = leverage.replace({True: 'Inside AD', False: 'Outside AD'})
 
     std_ensemble = dataframe_std.iloc[:,0]
     # Create a mask using boolean indexing
@@ -255,7 +259,7 @@ def predictions(loaded_model, loaded_desc, df_test_normalized):
     std_ad_calc = std_ad_calc.replace({True: 'Outside AD', False: 'Inside AD'})
    
     
-    final_file = pd.concat([std_ad_calc,h_final,dataframe_pred], axis=1)
+    final_file = pd.concat([std_ad_calc,leverage,h_final,dataframe_pred], axis=1)
     
     final_file.rename(columns={0: "Std_residual"},inplace=True)
     
