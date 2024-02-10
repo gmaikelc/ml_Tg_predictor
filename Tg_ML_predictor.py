@@ -252,6 +252,7 @@ def predictions(loaded_model, loaded_desc, df_test_normalized):
     leverage = h_final
     leverage.rename(columns={"Confidence": "Leverage"},inplace=True)
     leverage = leverage.replace({True: 'Inside AD', False: 'Outside AD'})
+    leverage.index = idx
 
     std_ensemble = dataframe_std.iloc[:,0]
     # Create a mask using boolean indexing
