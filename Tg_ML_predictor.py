@@ -91,11 +91,10 @@ st.image(image, caption='Tg ML predictor workflow')
 # Sidebar - Collects user input features into dataframe
 st.sidebar.header('Upload your CSV file')
 st.sidebar.markdown("""
-[Example CSV input file with AlvaDesc descriptors](https://raw.githubusercontent.com/gmaikelc/ml_Tg_predictor/main/example_file.csv) 
-
+[Example CSV input file](https://raw.githubusercontent.com/gmaikelc/ml_Tg_predictor/main/example_file.csv) 
 """)
 
-uploaded_file_1 = st.sidebar.file_uploader("Upload a CSV file with AlvaDesc descriptors, one compound per line", type=["csv"])
+uploaded_file_1 = st.sidebar.file_uploader("Upload a CSV file with AlvaDesc descriptors", type=["csv"])
 
 
 #%% Reading data and reording if needed ####
@@ -337,8 +336,8 @@ if uploaded_file_1 is not None:
 
 # Example file
 else:
-    st.info('👈🏼👈🏼👈🏼      Awaiting for CSV file to be uploaded.')
-    if st.button('Press to use Example CSV Dataset'):
+    st.info('👈🏼👈🏼👈🏼   Awaiting for CSV file to be uploaded.')
+    if st.button('Press to use Example CSV Dataset with Alvadesc Descriptors'):
         data = pd.read_csv("example_file.csv")
         descriptors_total, id =  reading_reorder(data)
         X_final1, id = all_correct_model(descriptors_total,loaded_desc, id_list)
