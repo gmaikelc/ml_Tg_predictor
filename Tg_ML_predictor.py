@@ -293,7 +293,7 @@ def final_plot(final_file):
                             legend_title_font = dict(size=18, family='Calibri', color='black'),
                             legend_font = dict(size=15, family='Calibri', color='black'))
     
-    fig.update_layout(title_text=None)
+    fig.update_layout(title_text='Percentage confidence')
     
     return fig
 
